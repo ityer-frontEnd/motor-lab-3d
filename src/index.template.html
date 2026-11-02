@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b10">
+<title>三相异步电动机 · THE HEART OF DRIVE | 3D 故障诊断实验室</title>
+<style>
+/* ============================================================
+   THE HEART OF DRIVE — visual system
+   Base canvas 1440 × 900. Industrial museum × diagnostic terminal.
+============================================================ */
+:root{
+  --bg:#080b10;
+  --bg-lift:#0d131b;
+  --stage:#111821;
+  --ink:#e8edf2;
+  --muted:#8794a3;
+  --muted-2:#5e6a78;
+  --line:rgba(172,199,219,.13);
+  --line-soft:rgba(172,199,219,.075);
+  --cyan:#70d8e5;
+  --cyan-soft:rgba(112,216,229,.13);
+  --amber:#ffab5e;
+  --amber-soft:rgba(255,171,94,.12);
+  --red:#e45a52;
+  --red-soft:rgba(228,90,82,.13);
+  --green:#83d3a4;
+  --steel:#b9c5cf;
+  --copper:#c68155;
+  --panel:rgba(13,19,27,.82);
+  --mono:"Cascadia Code","SFMono-Regular","Consolas","Liberation Mono",monospace;
+  --sans:"Bahnschrift","DIN Alternate","Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  --cn:"Microsoft YaHei UI","PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+  --r:4px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; color:var(--ink); background:
+    radial-gradient(1200px 700px at 42% -15%, rgba(48,78,98,.20), transparent 62%),
+    radial-gradient(900px 680px at 102% 86%, rgba(26,65,74,.10), transparent 60%),
+    var(--bg);
+  font-family:var(--cn); font-size:12px; line-height:1.45;
+  overflow:hidden; -webkit-font-smoothing:antialiased; text-rendering:geometricPrecision;
+  user-select:none;
+}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-visible{
+  outline:1px solid var(--cyan); outline-offset:2px;
+}
+::selection{background:rgba(112,216,229,.25);color:#fff}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#24303c;border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:#344555}
+
+/* ============ app shell ============ */
+#app{
+  width:100%; height:100vh; min-height:720px;
+  display:flex; flex-direction:column;
+  max-width:1920px; margin:0 auto;
+  position:relative;
+}
+.topbar{
+  height:64px; flex:0 0 64px; display:flex; align-items:center; gap:28px;
+  padding:0 20px; border-bottom:1px solid var(--line-soft);
+  background:linear-gradient(180deg, rgba(12,18,26,.72), rgba(8,11,16,.18));
+  position:relative; z-index:30;
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:310px}
+.brand-mark{
+  width:32px;height:32px;border:1px solid rgba(112,216,229,.34);border-radius:50%;
+  display:grid;place-items:center;position:relative;color:var(--cyan);
+  box-shadow:inset 0 0 18px rgba(112,216,229,.08),0 0 24px rgba(112,216,229,.04);
+}
+.brand-mark::before,.brand-mark::after{content:"";position:absolute;inset:5px;border:1px solid rgba(112,216,229,.15);border-radius:50%}
+.brand-mark::after{inset:10px;border-color:rgba(112,216,229,.30)}
+.brand-mark span{font:600 12px/1 var(--mono);letter-spacing:-1px;transform:translateX(.5px)}
+.brand-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand-txt .kicker{font:600 8px/1.2 var(--mono);letter-spacing:.18em;color:var(--muted-2)}
+.brand-txt h1{font-size:14px;line-height:1.2;margin:0;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+.brand-txt h1 i{font:400 9px/1.2 var(--sans);font-style:normal;letter-spacing:.14em;color:var(--muted);margin-left:7px}
+.spec-strip{display:flex;align-items:center;gap:0;flex:1;min-width:0;height:30px}
+.spec-strip .spec{display:flex;flex-direction:column;gap:2px;padding:0 18px;border-left:1px solid var(--line-soft);min-width:84px}
+.spec-strip .spec:first-child{border-left:0;padding-left:0}
+.spec-strip .spec b{font:500 10px/1.15 var(--mono);letter-spacing:.02em;color:var(--steel);white-space:nowrap}
+.spec-strip .spec span{font:500 8px/1.1 var(--mono);letter-spacing:.14em;color:var(--muted-2);white-space:nowrap}
+.top-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.icon-btn{
+  height:30px;min-width:30px;padding:0 9px;border:1px solid transparent;border-radius:var(--r);
+  color:var(--muted);display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:color .16s,border-color .16s,background .16s;white-space:nowrap;
+}
+.icon-btn:hover{color:var(--ink);border-color:var(--line);background:rgba(255,255,255,.03)}
+.icon-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5}
+.live-pill{
+  height:30px;display:flex;align-items:center;gap:8px;padding:0 11px;margin-right:8px;
+  border:1px solid var(--line);border-radius:999px;background:rgba(8,12,18,.5);
+  font:500 10px/1 var(--mono);letter-spacing:.05em;color:var(--steel);white-space:nowrap;
+}
+.live-pill .dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(131,211,164,.10),0 0 11px rgba(131,211,164,.55);transition:.2s}
+.live-pill.warn .dot{background:var(--amber);box-shadow:0 0 0 3px rgba(255,171,94,.1),0 0 11px rgba(255,171,94,.5)}
+.live-pill.alarm .dot{background:var(--red);box-shadow:0 0 0 3px rgba(228,90,82,.12),0 0 14px rgba(228,90,82,.8);animation:alarmDot 1s steps(2,end) infinite}
+@keyframes alarmDot{50%{opacity:.35}}
+.quality{
+  height:30px;border:1px solid var(--line-soft);border-radius:var(--r);background:#0a0f15;color:var(--muted);
+  font:500 9px/1 var(--mono);letter-spacing:.08em;padding:0 8px;appearance:none;min-width:78px;
+}
+.quality:hover{border-color:var(--line);color:var(--ink)}
+.top-sep{width:1px;height:20px;background:var(--line-soft);margin:0 3px}
+.cta-btn{
+  height:30px;padding:0 12px;border:1px solid rgba(112,216,229,.23);border-radius:var(--r);
+  color:var(--cyan);font:600 9px/1 var(--mono);letter-spacing:.1em;background:rgba(112,216,229,.045);
+  transition:.16s;white-space:nowrap
+}
+.cta-btn:hover{background:rgba(112,216,229,.11);border-color:rgba(112,216,229,.44);box-shadow:0 0 22px rgba(112,216,229,.07)}
+
+/* ============ workspace ============ */
+.workspace{
+  flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 376px;gap:14px;
+  padding:12px 18px 16px;
+}
+.center{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) 288px;gap:12px}
+.sidebar{
+  min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:3px;
+  display:flex;flex-direction:column;gap:7px;scrollbar-gutter:stable;
+}
+
+/* ============ 3D stage ============ */
+.stage{
+  position:relative;min-height:0;overflow:hidden;border:1px solid var(--line);
+  background:
+    radial-gradient(65% 58% at 50% 45%, #17212b 0%, #0e151d 48%, #080b10 100%);
+  isolation:isolate; border-radius:2px;
+}
+.stage::before{
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(8,11,16,.52) 0%,transparent 28%,transparent 72%,rgba(8,11,16,.30) 100%),
+    linear-gradient(0deg,rgba(5,7,11,.72) 0%,transparent 30%,transparent 82%,rgba(8,11,16,.30) 100%);
+}
+.stage::after{
+  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.34;
+  background-image:linear-gradient(rgba(136,169,190,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(136,169,190,.022) 1px,transparent 1px);
+  background-size:72px 72px; mask-image:radial-gradient(ellipse at center,black,transparent 78%);
+}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;touch-action:none}
+.stage-ui{position:absolute;inset:0;z-index:4;pointer-events:none}
+.stage-ui > *{pointer-events:auto}
+.stage-corner{position:absolute;width:17px;height:17px;border-color:rgba(163,193,211,.28);border-style:solid;z-index:5;pointer-events:none;opacity:.75}
+.corner-tl{top:10px;left:10px;border-width:1px 0 0 1px}.corner-tr{top:10px;right:10px;border-width:1px 1px 0 0}
+.corner-bl{bottom:10px;left:10px;border-width:0 0 1px 1px}.corner-br{bottom:10px;right:10px;border-width:0 1px 1px 0}
+.hero-caption{
+  position:absolute;left:25px;top:22px;z-index:6;max-width:340px;text-shadow:0 2px 20px rgba(0,0,0,.65);
+}
+.eyebrow{display:flex;align-items:center;gap:8px;font:500 8px/1 var(--mono);letter-spacing:.17em;color:var(--muted);text-transform:uppercase}
+.eyebrow::before{content:"";width:17px;height:1px;background:var(--cyan);opacity:.65}
+.hero-caption h2{
+  margin:10px 0 1px;font:300 36px/.95 var(--sans);letter-spacing:-.035em;color:#f1f5f8;
+}
+.hero-caption h2 span{font:400 13px/1 var(--mono);letter-spacing:.02em;color:var(--steel);margin-left:4px}
+.hero-caption p{margin:7px 0 0;font:400 11px/1.5 var(--cn);letter-spacing:.20em;color:var(--muted)}
+.hero-caption .patent{margin-top:9px;font:500 8px/1 var(--mono);letter-spacing:.12em;color:var(--muted-2)}
+.hero-caption .patent b{color:var(--cyan);font-weight:500}
+.stage-controls{position:absolute;top:18px;right:20px;z-index:7;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.view-tabs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:4px;background:rgba(6,10,15,.70);backdrop-filter:blur(14px)}
+.view-tab{
+  height:26px;padding:0 11px;border:1px solid transparent;border-radius:2px;color:var(--muted);
+  font:500 10px/1 var(--cn);letter-spacing:.06em;transition:.16s;
+}
+.view-tab:hover{color:var(--ink);background:rgba(255,255,255,.03)}
+.view-tab.active{color:#b9f2f6;background:rgba(112,216,229,.10);border-color:rgba(112,216,229,.18)}
+.view-tab .idx{font:500 7px/1 var(--mono);color:var(--muted-2);margin-right:5px;letter-spacing:.08em}
+.view-tab.active .idx{color:var(--cyan)}
+.camera-select{display:none;height:23px;border:1px solid var(--line-soft);border-radius:2px;background:#0a1016;color:var(--steel);font:500 8px/1 var(--mono);padding:0 5px;max-width:104px}
+.camera-rail{display:flex;align-items:center;gap:3px}
+.cam-chip{
+  height:24px;padding:0 8px;border:1px solid transparent;border-radius:2px;background:rgba(6,10,15,.42);
+  color:var(--muted-2);font:500 9px/1 var(--cn);letter-spacing:.03em;transition:.16s;
+}
+.cam-chip:hover{color:var(--steel);border-color:var(--line-soft)}
+.cam-chip.active{color:var(--cyan);border-color:rgba(112,216,229,.20);background:rgba(112,216,229,.05)}
+.icon-square{
+  width:26px;height:26px;border:1px solid var(--line-soft);border-radius:2px;background:rgba(6,10,15,.45);
+  display:grid;place-items:center;color:var(--muted);transition:.16s;
+}
+.icon-square:hover{color:var(--ink);border-color:var(--line);background:rgba(255,255,255,.03)}
+.icon-square svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.4}
+.side-tools{position:absolute;left:22px;top:190px;z-index:6;display:flex;flex-direction:column;gap:6px}
+.side-tools .icon-square{width:27px;height:27px;background:rgba(6,10,15,.35)}
+.field-legend{
+  position:absolute;left:50%;bottom:42px;transform:translateX(-50%);z-index:6;
+  display:none;align-items:center;gap:8px;padding:6px 10px;border:1px solid rgba(112,216,229,.2);
+  background:rgba(6,11,16,.78);backdrop-filter:blur(12px);font:500 8px/1 var(--mono);
+  color:var(--steel);letter-spacing:.04em;white-space:nowrap;
+}
+.field-legend.show{display:flex}
+.field-legend .fl-chip{width:13px;height:13px;display:grid;place-items:center;border-radius:50%;font:600 8px/1 var(--mono)}
+.field-legend .fl-chip.n{color:#ffc1bc;border:1px solid rgba(255,155,147,.55);background:rgba(255,99,88,.12)}
+.field-legend .fl-chip.s{color:#a6f3fb;border:1px solid rgba(112,216,229,.55);background:rgba(112,216,229,.10)}
+.field-legend em{font-style:normal;color:var(--cyan);letter-spacing:.08em}
+.field-legend #fieldLegendText{color:var(--muted)}
+.motion-hud{
+  position:absolute;left:24px;bottom:24px;z-index:6;width:252px;padding:10px 12px 11px;
+  border:1px solid var(--line);border-radius:3px;background:rgba(7,11,16,.73);backdrop-filter:blur(12px);
+  box-shadow:0 12px 40px rgba(0,0,0,.24);
+}
+.motion-hud .hud-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.hud-label{font:600 8px/1 var(--mono);letter-spacing:.15em;color:var(--muted-2)}
+.hud-state{font:500 8px/1 var(--mono);letter-spacing:.08em;color:var(--cyan)}
+.hud-row{display:flex;align-items:baseline;justify-content:space-between;gap:9px;padding:3px 0;border-top:1px solid rgba(170,198,215,.065)}
+.hud-row span{color:var(--muted);font-size:9px;letter-spacing:.02em}
+.hud-row b{font:500 11px/1.15 var(--mono);color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.hud-row b i{font:400 8px/1 var(--mono);font-style:normal;color:var(--muted);margin-left:3px;letter-spacing:0}
+.hud-row.accent b{color:var(--cyan)}
+.slip-readout{display:flex;justify-content:space-between;margin-top:6px;padding-top:7px;border-top:1px solid rgba(170,198,215,.08)}
+.slip-readout span{font:500 8px/1.25 var(--mono);color:var(--muted-2);letter-spacing:.03em}
+.slip-readout b{font:500 9px/1.25 var(--mono);color:var(--amber)}
+.stage-note{
+  position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:5;
+  font:500 8px/1.2 var(--mono);letter-spacing:.14em;color:rgba(135,148,163,.55);
+  white-space:nowrap;pointer-events:none;text-align:center;
+}
+.axis-badge{
+  position:absolute;right:22px;bottom:24px;z-index:5;display:flex;align-items:center;gap:9px;
+  color:var(--muted-2);font:500 8px/1.35 var(--mono);letter-spacing:.10em;pointer-events:none;
+}
+.axis-glyph{width:31px;height:31px;border:1px solid var(--line-soft);border-radius:50%;position:relative;opacity:.7}
+.axis-glyph::before,.axis-glyph::after{content:"";position:absolute;left:50%;top:50%;background:rgba(135,148,163,.5)}
+.axis-glyph::before{width:20px;height:1px;transform:translate(-50%,-50%) rotate(-28deg);transform-origin:center}
+.axis-glyph::after{width:1px;height:20px;transform:translate(-50%,-50%) rotate(-28deg);transform-origin:center}
+.axis-glyph i{position:absolute;width:4px;height:4px;border:1px solid var(--muted);border-radius:50%;right:3px;top:9px}
+.cinema-hud{
+  position:absolute;left:0;right:0;top:0;bottom:0;z-index:11;pointer-events:none;display:none;
+}
+.cinema-hud.active{display:block}
+.cinema-hud::before,.cinema-hud::after{content:"";position:absolute;left:0;right:0;height:38px;background:rgba(2,4,7,.82);z-index:1}
+.cinema-hud::before{top:0}.cinema-hud::after{bottom:0}
+.cinema-title{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);text-align:center;z-index:2}
+.cinema-title .t{font:400 18px/1.2 var(--sans);letter-spacing:.25em;color:#d9e5eb;text-transform:uppercase}
+.cinema-title .s{margin-top:6px;font:500 8px/1 var(--mono);letter-spacing:.24em;color:var(--cyan)}
+.cinema-progress{position:absolute;left:0;bottom:37px;height:1px;width:100%;background:rgba(255,255,255,.08);z-index:3}
+.cinema-progress b{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 14px rgba(112,216,229,.4)}
+.cinema-exit-hint{position:absolute;right:22px;top:12px;z-index:3;color:rgba(232,237,242,.42);font:500 8px/1 var(--mono);letter-spacing:.12em}
+.alarm-banner{
+  position:absolute;top:15px;left:50%;transform:translate(-50%,-10px);z-index:20;
+  min-width:460px;max-width:calc(100% - 110px);display:flex;align-items:center;gap:11px;
+  padding:9px 10px 9px 13px;border:1px solid rgba(228,90,82,.55);border-radius:3px;
+  background:linear-gradient(90deg,rgba(53,18,17,.95),rgba(26,13,13,.92));
+  box-shadow:0 12px 50px rgba(0,0,0,.45),0 0 48px rgba(228,90,82,.08);
+  opacity:0;visibility:hidden;transition:opacity .24s,transform .24s;pointer-events:none;
+}
+.alarm-banner.show{opacity:1;visibility:visible;transform:translate(-50%,0);pointer-events:auto}
+.alarm-banner .alarm-icon{
+  width:25px;height:25px;border:1px solid rgba(228,90,82,.5);border-radius:50%;display:grid;place-items:center;
+  color:var(--red);font:600 13px/1 var(--mono);flex:0 0 auto;animation:alarmDot 1.2s steps(2,end) infinite;
+}
+.alarm-banner .alarm-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.alarm-banner .alarm-copy b{font:600 11px/1.25 var(--cn);letter-spacing:.02em;color:#ffd9d5}
+.alarm-banner .alarm-copy span{font:500 8px/1.3 var(--mono);color:rgba(255,190,184,.65);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alarm-banner .alarm-action{
+  margin-left:auto;flex:0 0 auto;height:26px;padding:0 9px;border:1px solid rgba(255,149,141,.25);border-radius:2px;
+  color:#ffc1bc;font:500 9px/1 var(--cn);background:rgba(228,90,82,.08)
+}
+.alarm-banner .alarm-action:hover{background:rgba(228,90,82,.17)}
+.stage.is-alarm::before{background:linear-gradient(90deg,rgba(43,13,12,.45),transparent 32%,transparent 68%,rgba(43,13,12,.26))}
+.stage.is-alarm{box-shadow:inset 0 0 90px rgba(190,50,44,.13)}
+.stage.is-alarm .stage-corner{border-color:rgba(228,90,82,.55)}
+@keyframes alarmSweep{0%,100%{opacity:.25}50%{opacity:.8}}
+
+/* ---- 3D annotations ---- */
+.annotation-layer{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.annotation-layer svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.annotation-layer path{fill:none;stroke:rgba(112,216,229,.4);stroke-width:.7;stroke-dasharray:2 4}
+.annotation-label{
+  position:absolute;transform:translate(0,-50%);padding:3px 7px 4px;border-left:1px solid rgba(112,216,229,.5);
+  background:linear-gradient(90deg,rgba(7,12,17,.82),rgba(7,12,17,.25));font:500 8px/1.25 var(--mono);
+  letter-spacing:.06em;color:var(--steel);white-space:nowrap;opacity:0;transition:opacity .25s;
+}
+.annotation-label b{display:block;color:var(--ink);font:500 9px/1.3 var(--cn);letter-spacing:.02em}
+.annotation-label.show{opacity:1}
+.annotation-label i{font-style:normal;color:var(--muted-2)}
+.part-tooltip{
+  position:absolute;z-index:24;width:242px;pointer-events:none;opacity:0;transform:translateY(5px);
+  transition:opacity .15s,transform .15s;padding:10px 11px;border:1px solid rgba(172,199,219,.19);
+  background:rgba(8,13,19,.94);backdrop-filter:blur(15px);box-shadow:0 16px 50px rgba(0,0,0,.45);
+}
+.part-tooltip.show{opacity:1;transform:none}
+.part-tooltip .tt-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.part-tooltip .tt-name{font:600 11px/1.35 var(--cn);color:var(--ink)}
+.part-tooltip .tt-en{font:500 7px/1.4 var(--mono);letter-spacing:.1em;color:var(--muted-2);margin-top:2px;text-transform:uppercase}
+.part-tooltip .tt-type{font:500 7px/1 var(--mono);letter-spacing:.08em;color:var(--cyan);padding:3px 5px;border:1px solid rgba(112,216,229,.17);white-space:nowrap}
+.part-tooltip .tt-desc{margin:8px 0 7px;font-size:10px;line-height:1.6;color:var(--muted)}
+.part-tooltip .tt-meta{display:flex;flex-wrap:wrap;gap:4px}
+.part-tooltip .tt-meta span{padding:2px 5px;border:1px solid var(--line-soft);color:var(--muted);font:500 7px/1.3 var(--mono);letter-spacing:.03em}
+.part-tooltip .tt-motion{margin-top:7px;padding-top:7px;border-top:1px solid var(--line-soft);font:500 8px/1.45 var(--mono);color:var(--steel)}
+.part-tooltip .tt-motion b{color:var(--cyan);font-weight:500}
+
+/* ---- sensor / part floating sheets ---- */
+.sensor-sheet{
+  position:absolute;right:20px;top:92px;z-index:19;width:326px;border:1px solid rgba(112,216,229,.24);
+  background:linear-gradient(155deg,rgba(14,23,31,.96),rgba(8,13,19,.94));backdrop-filter:blur(18px);
+  box-shadow:0 20px 70px rgba(0,0,0,.5);transform:translateX(12px);opacity:0;visibility:hidden;
+  transition:opacity .22s,transform .22s;max-height:calc(100% - 104px);overflow:auto;
+}
+.sensor-sheet.open{opacity:1;visibility:visible;transform:none}
+.sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:11px 12px 9px;border-bottom:1px solid var(--line-soft)}
+.sheet-kicker{font:500 7px/1 var(--mono);letter-spacing:.16em;color:var(--cyan);margin-bottom:5px}
+.sheet-title{font:600 12px/1.3 var(--cn);color:var(--ink)}
+.sheet-en{font:500 7px/1.4 var(--mono);letter-spacing:.1em;color:var(--muted-2);margin-top:2px}
+.close-x{width:22px;height:22px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;border-radius:2px}
+.close-x:hover{color:var(--ink);border-color:var(--line)}
+.close-x svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.5}
+.sheet-body{padding:9px 12px 12px}
+.sensor-value-line{display:flex;align-items:flex-end;justify-content:space-between;padding:2px 0 10px}
+.sensor-value-line .big{font:500 26px/1 var(--mono);letter-spacing:-.04em;color:#f2f7fa}
+.sensor-value-line .big i{font:400 9px/1 var(--mono);font-style:normal;letter-spacing:.04em;color:var(--muted);margin-left:4px}
+.sensor-state{display:flex;align-items:center;gap:5px;font:500 8px/1 var(--mono);letter-spacing:.09em;color:var(--muted)}
+.sensor-state::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 9px currentColor}
+.sensor-state.normal{color:var(--green)}.sensor-state.warn{color:var(--amber)}.sensor-state.alarm{color:var(--red)}
+.sheet-info{display:grid;grid-template-columns:70px 1fr;gap:5px 9px;padding-top:9px;border-top:1px solid var(--line-soft)}
+.sheet-info dt{color:var(--muted-2);font-size:9px}
+.sheet-info dd{margin:0;color:var(--steel);font-size:10px;line-height:1.45}
+.sheet-info dd.mono{font-size:9px}
+.part-link{display:flex;align-items:center;gap:6px;margin-top:10px;padding:7px 8px;border:1px solid rgba(112,216,229,.12);background:rgba(112,216,229,.035);color:var(--muted);font-size:9px;line-height:1.45}
+.part-link b{color:var(--cyan);font-weight:500;display:block;font-size:10px}
+.part-link .arrow{color:var(--cyan);font:500 12px/1 var(--mono);margin-left:auto;opacity:.65}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:9px}
+.chain-node{padding:4px 6px;border:1px solid var(--line-soft);color:var(--muted);font:500 8px/1 var(--mono);letter-spacing:.03em;white-space:nowrap}
+.chain-node.active{border-color:rgba(112,216,229,.28);color:var(--cyan);background:rgba(112,216,229,.05)}
+.chain-arr{color:var(--muted-2);font-size:8px}
+.sheet-actions{display:flex;gap:5px;margin-top:10px}
+.sheet-btn{height:25px;padding:0 8px;border:1px solid var(--line);color:var(--muted);font:500 9px/1 var(--cn);border-radius:2px;transition:.15s}
+.sheet-btn:hover{color:var(--ink);border-color:var(--line);background:rgba(255,255,255,.03)}
+.sheet-btn.primary{border-color:rgba(112,216,229,.25);color:var(--cyan);background:rgba(112,216,229,.05)}
+.abnormal-parts{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.abnormal-parts span{padding:3px 5px;border:1px solid rgba(255,171,94,.14);background:rgba(255,171,94,.04);color:rgba(255,190,139,.72);font:500 8px/1.2 var(--mono)}
+.part-sheet{
+  position:absolute;right:20px;bottom:24px;z-index:18;width:294px;padding:11px 12px;border:1px solid var(--line);
+  background:rgba(8,13,19,.92);backdrop-filter:blur(15px);box-shadow:0 16px 55px rgba(0,0,0,.4);
+  transform:translateY(7px);opacity:0;visibility:hidden;transition:.2s;
+}
+.part-sheet.open{opacity:1;visibility:visible;transform:none}
+.part-sheet .ps-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.part-sheet .ps-title{font:600 11px/1.3 var(--cn)}
+.part-sheet .ps-en{font:500 7px/1.4 var(--mono);color:var(--muted-2);letter-spacing:.08em;margin-top:2px}
+.part-sheet .ps-desc{font-size:9px;line-height:1.6;color:var(--muted);margin:7px 0}
+.part-sheet .ps-meta{display:flex;flex-wrap:wrap;gap:4px}
+.part-sheet .ps-meta span{font:500 7px/1.3 var(--mono);padding:2px 4px;border:1px solid var(--line-soft);color:var(--muted)}
+.part-sheet .ps-actions{display:flex;gap:5px;margin-top:8px}
+.terminal-card{
+  position:absolute;left:50%;bottom:24px;transform:translate(-50%,6px);z-index:18;width:378px;padding:11px 12px;
+  border:1px solid rgba(172,199,219,.18);background:rgba(8,13,19,.94);backdrop-filter:blur(16px);
+  box-shadow:0 18px 60px rgba(0,0,0,.45);opacity:0;visibility:hidden;transition:.22s;
+}
+.terminal-card.open{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.terminal-card .tc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.terminal-card h4{margin:0;font-size:11px;font-weight:600}
+.terminal-card p{margin:3px 0 0;font-size:9px;line-height:1.5;color:var(--muted)}
+.terminal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;align-items:center}
+.connection-switch{display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:2px;background:rgba(255,255,255,.02)}
+.connection-switch button{height:24px;flex:1;font:500 9px/1 var(--mono);letter-spacing:.05em;color:var(--muted);border-radius:1px}
+.connection-switch button.active{color:var(--cyan);background:rgba(112,216,229,.1)}
+.terminal-note{font:500 8px/1.6 var(--mono);color:var(--muted-2);letter-spacing:.01em}
+.terminal-note b{color:var(--amber);font-weight:500}
+
+/* ============ deck ============ */
+.deck{min-width:0;min-height:0;display:grid;grid-template-rows:44px 26px 64px minmax(0,1fr);gap:8px}
+.transport{
+  display:flex;align-items:center;gap:9px;padding:5px 8px;border:1px solid var(--line-soft);background:rgba(10,15,22,.58);
+}
+.transport .btn{
+  height:31px;min-width:58px;padding:0 10px;border:1px solid var(--line);border-radius:2px;
+  color:var(--muted);font:500 10px/1 var(--cn);display:flex;align-items:center;gap:6px;justify-content:center;
+  background:rgba(255,255,255,.015);transition:.15s;white-space:nowrap;
+}
+.transport .btn:hover{color:var(--ink);border-color:rgba(172,199,219,.3);background:rgba(255,255,255,.035)}
+.transport .btn.primary{border-color:rgba(112,216,229,.31);color:#b7f1f5;background:rgba(112,216,229,.07)}
+.transport .btn.primary:hover{background:rgba(112,216,229,.12)}
+.transport .btn.power[aria-pressed="true"]{color:var(--cyan);border-color:rgba(112,216,229,.3)}
+.transport .btn.stop{border-color:rgba(228,90,82,.15);color:rgba(228,90,82,.8)}
+.transport .btn.stop:hover{border-color:rgba(228,90,82,.36);background:rgba(228,90,82,.06)}
+.transport .btn[disabled]{opacity:.32;pointer-events:none}
+.transport .ctrl-ico{font:500 12px/1 var(--mono);opacity:.9}
+.transport .vrule{width:1px;height:21px;background:var(--line-soft);margin:0 2px}
+.load-control{display:flex;align-items:center;gap:8px;min-width:174px;flex:1;max-width:276px}
+.load-control label{font-size:9px;letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+.load-control .range{flex:1}
+.range{
+  --fill:50%; appearance:none;height:2px;border-radius:2px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,var(--cyan) 0%,var(--cyan) var(--fill),#25313c var(--fill),#25313c 100%);
+  min-width:50px;
+}
+.range::-webkit-slider-thumb{
+  appearance:none;width:10px;height:10px;border-radius:50%;background:#dffbfd;border:1px solid var(--cyan);
+  box-shadow:0 0 0 3px rgba(112,216,229,.10),0 0 14px rgba(112,216,229,.25);cursor:ew-resize;
+}
+.range::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#dffbfd;border:1px solid var(--cyan);box-shadow:0 0 0 3px rgba(112,216,229,.1);cursor:ew-resize}
+.val-chip{min-width:44px;text-align:right;font:500 11px/1 var(--mono);letter-spacing:-.02em;color:var(--steel);white-space:nowrap;font-variant-numeric:tabular-nums}
+.val-chip i{font:400 8px/1 var(--mono);font-style:normal;color:var(--muted-2);margin-left:2px;letter-spacing:0}
+.obs-control{display:flex;align-items:center;gap:7px;margin-left:auto}
+.obs-control>span{font-size:9px;color:var(--muted);white-space:nowrap;letter-spacing:.03em}
+.seg{display:flex;gap:1px;padding:2px;border:1px solid var(--line-soft);border-radius:2px;background:rgba(7,11,16,.55)}
+.seg button{height:24px;padding:0 7px;border-radius:1px;color:var(--muted-2);font:500 8px/1 var(--mono);letter-spacing:.03em;white-space:nowrap;transition:.15s}
+.seg button:hover{color:var(--ink);background:rgba(255,255,255,.03)}
+.seg button.active{color:var(--cyan);background:rgba(112,216,229,.09)}
+.manual-wrap{display:none;align-items:center;gap:5px;min-width:86px}
+.manual-wrap.show{display:flex}
+.manual-wrap .range{width:64px;flex:0 0 64px}
+.manual-wrap b{font:500 8px/1 var(--mono);color:var(--cyan);min-width:34px;text-align:right}
+.timeline-row{
+  display:flex;align-items:center;gap:8px;padding:0 8px;border:1px solid var(--line-soft);background:rgba(9,14,20,.48);
+  font:500 8px/1 var(--mono);color:var(--muted-2);white-space:nowrap;min-width:0;
+}
+.timeline-row .tl-title{letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:7px}
+.timeline-row .tl-title em{font-style:normal;color:var(--muted-2);letter-spacing:.06em}
+.step-btns{display:flex;gap:1px}
+.step-btns button{height:18px;min-width:22px;padding:0 4px;border:1px solid transparent;border-radius:1px;color:var(--muted-2);font:500 8px/1 var(--mono)}
+.step-btns button:hover{color:var(--ink);border-color:var(--line);background:rgba(255,255,255,.03)}
+.phase-track{position:relative;height:22px;flex:1;min-width:100px;cursor:ew-resize;overflow:hidden}
+.phase-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(90deg,#25313c,#314352 50%,#25313c)}
+.phase-track .tick{position:absolute;top:50%;width:1px;height:4px;background:#2e3e4c;transform:translateY(-50%)}
+.phase-track .tick.major{height:8px;background:#4a6172}
+.phase-track .marker{position:absolute;top:50%;width:0;height:0;transform:translate(-50%,-50%);transition:none}
+.phase-track .marker.rotor{border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid #7c8b98}
+.phase-track .marker.field{border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid var(--cyan);box-shadow:0 -3px 11px rgba(112,216,229,.6)}
+.phase-track .marker::after{content:"";position:absolute;left:-1px;top:5px;width:2px;height:8px;background:inherit;opacity:.22}
+.phase-values{display:flex;align-items:center;gap:11px;flex:0 0 auto}
+.phase-values span{color:var(--muted-2)}
+.phase-values b{color:var(--steel);font-weight:500;margin-left:3px}
+.phase-values .slip b{color:var(--amber)}
+.sensor-band{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;min-width:0}
+.sensor-cell{
+  min-width:0;padding:7px 8px 6px;border:1px solid var(--line-soft);background:rgba(10,15,22,.52);
+  position:relative;overflow:hidden;cursor:pointer;transition:border-color .16s,background .16s,transform .16s;
+  text-align:left;
+}
+.sensor-cell:hover{border-color:rgba(172,199,219,.25);background:rgba(15,22,31,.72);transform:translateY(-1px)}
+.sensor-cell.selected{border-color:rgba(112,216,229,.34);background:rgba(112,216,229,.045)}
+.sensor-cell.alarm{border-color:rgba(228,90,82,.32)}
+.sensor-cell.warn{border-color:rgba(255,171,94,.27)}
+.sensor-cell::after{content:"";position:absolute;right:-20px;bottom:-30px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(112,216,229,.06),transparent 66%);pointer-events:none}
+.sc-top{display:flex;align-items:center;gap:5px;min-width:0}
+.sc-id{font:500 7px/1 var(--mono);letter-spacing:.04em;color:var(--muted-2)}
+.sc-name{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-dot{width:5px;height:5px;margin-left:auto;border-radius:50%;flex:0 0 auto;background:var(--green);box-shadow:0 0 7px rgba(131,211,164,.55);transition:.2s}
+.sc-dot.warn{background:var(--amber);box-shadow:0 0 7px rgba(255,171,94,.6)}
+.sc-dot.alarm{background:var(--red);box-shadow:0 0 9px rgba(228,90,82,.8);animation:alarmDot 1s steps(2,end) infinite}
+.sc-main{display:flex;align-items:baseline;gap:3px;margin-top:5px;min-width:0}
+.sc-val{font:500 18px/1 var(--mono);letter-spacing:-.04em;color:#edf4f7;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sc-unit{font:500 8px/1 var(--mono);color:var(--muted-2);letter-spacing:.02em;white-space:nowrap}
+.sc-wave{position:absolute;right:7px;bottom:5px;width:45px;height:14px;opacity:.65}
+.sc-range{font:500 7px/1 var(--mono);color:var(--muted-2);letter-spacing:.02em;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sensor-band.off .sc-val{color:var(--muted-2)}
+.chart-row{display:grid;grid-template-columns:1.18fr 1fr 1.06fr;gap:7px;min-height:0}
+.chart-card{
+  min-width:0;min-height:0;position:relative;border:1px solid var(--line-soft);background:rgba(9,14,20,.58);
+  padding:6px 8px 5px;display:flex;flex-direction:column;transition:border-color .16s,background .16s;
+}
+.chart-card:hover{border-color:rgba(172,199,219,.21);background:rgba(11,17,24,.75)}
+.chart-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto;height:16px}
+.chart-title{font:500 9px/1 var(--cn);letter-spacing:.03em;color:var(--steel);white-space:nowrap}
+.chart-title span{font:500 7px/1 var(--mono);letter-spacing:.06em;color:var(--muted-2);margin-left:5px}
+.chart-expand{opacity:.35;width:17px;height:17px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;border-radius:2px;font-size:10px}
+.chart-expand:hover{opacity:1;border-color:var(--line);color:var(--ink)}
+.chart-canvas{position:absolute;left:8px;top:23px;width:calc(100% - 16px);height:calc(100% - 40px);min-height:0;display:block}
+.chart-card .chart-tag{position:absolute;left:8px;bottom:4px;font:500 7px/1 var(--mono);color:rgba(135,148,163,.45);letter-spacing:.05em;pointer-events:none}
+
+/* ============ right panel ============ */
+.panel{
+  border:1px solid var(--line-soft);background:linear-gradient(150deg,rgba(15,22,30,.67),rgba(9,14,20,.82));
+  position:relative;flex:0 0 auto;
+}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px 7px;border-bottom:1px solid var(--line-soft)}
+.panel-head .ph-l{display:flex;align-items:center;gap:7px;min-width:0}
+.panel-head h3{margin:0;font:600 10px/1.2 var(--cn);letter-spacing:.07em;color:var(--steel);white-space:nowrap}
+.panel-head .num{font:500 7px/1 var(--mono);letter-spacing:.08em;color:var(--muted-2)}
+.panel-head .expand{width:20px;height:20px;color:var(--muted-2);display:grid;place-items:center;border:1px solid transparent;border-radius:2px;flex:0 0 auto}
+.panel-head .expand:hover{color:var(--ink);border-color:var(--line)}
+.status-panel .panel-head{padding-bottom:5px;border-bottom:0}
+.status-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 11px 8px}
+.run-state{display:flex;align-items:center;gap:7px;min-width:0}
+.run-state .rs-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 9px rgba(131,211,164,.7);flex:0 0 auto}
+.run-state .rs-name{font:600 13px/1.1 var(--cn);letter-spacing:.03em;color:var(--ink)}
+.run-state .rs-sub{font:500 7px/1 var(--mono);letter-spacing:.11em;color:var(--muted-2);margin-left:2px;align-self:flex-end;padding-bottom:2px}
+.state-tag{font:500 8px/1 var(--mono);letter-spacing:.07em;padding:4px 6px;border:1px solid rgba(131,211,164,.19);color:var(--green);background:rgba(131,211,164,.04)}
+.state-tag.warn{border-color:rgba(255,171,94,.24);color:var(--amber);background:rgba(255,171,94,.045)}
+.state-tag.alarm{border-color:rgba(228,90,82,.3);color:var(--red);background:rgba(228,90,82,.055)}
+.main-gauges{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line-soft)}
+.main-gauge{padding:10px 12px 9px;position:relative;overflow:hidden;cursor:pointer;text-align:left;border-right:1px solid var(--line-soft)}
+.main-gauge:last-child{border-right:0}
+.main-gauge:hover{background:rgba(255,255,255,.018)}
+.mg-label{display:flex;align-items:center;justify-content:space-between;font:500 8px/1.2 var(--mono);letter-spacing:.09em;color:var(--muted)}
+.mg-label span{font:500 7px/1 var(--mono);color:var(--muted-2);align-self:auto}
+.mg-value{display:flex;align-items:baseline;gap:4px;margin-top:4px}
+.mg-value b{font:400 38px/1 var(--sans);letter-spacing:-.055em;color:#f1f6f9;font-variant-numeric:tabular-nums;transition:color .18s}
+.mg-value b.flash-inrush{color:var(--red);animation:inrushFlash .64s ease-out}
+@keyframes inrushFlash{0%{text-shadow:0 0 22px rgba(228,90,82,.85)}55%{text-shadow:0 0 12px rgba(228,90,82,.45)}100%{text-shadow:none}}
+.mg-value i{font:500 9px/1 var(--mono);font-style:normal;color:var(--muted);letter-spacing:.02em}
+.mg-ref{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font:500 7px/1.2 var(--mono);color:var(--muted-2);letter-spacing:.02em}
+.mg-ref b{font-weight:500;color:var(--steel)}
+.mg-mini{position:absolute;right:0;bottom:0;width:83px;height:25px;opacity:.4;pointer-events:none}
+.sub-gauges{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line-soft)}
+.sub-gauge{padding:7px 8px 8px;border-right:1px solid var(--line-soft);cursor:pointer;text-align:left}
+.sub-gauge:last-child{border-right:0}
+.sub-gauge span{display:block;font:500 7px/1.2 var(--mono);letter-spacing:.05em;color:var(--muted-2);white-space:nowrap}
+.sub-gauge b{display:block;margin-top:3px;font:500 13px/1 var(--mono);letter-spacing:-.03em;color:var(--steel);font-variant-numeric:tabular-nums}
+.sub-gauge b i{font:400 7px/1 var(--mono);font-style:normal;color:var(--muted-2);letter-spacing:0;margin-left:2px}
+.sub-gauge.hot b{color:var(--amber)}
+.conditions-panel{padding-bottom:8px}
+.condition-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px 9px 5px}
+.condition{
+  position:relative;min-height:46px;padding:6px 6px 6px 8px;text-align:left;border:1px solid var(--line-soft);
+  border-radius:2px;background:rgba(255,255,255,.012);color:var(--muted);transition:.16s;
+}
+.condition:hover{border-color:var(--line);color:var(--ink);background:rgba(255,255,255,.028)}
+.condition .c-dot{position:absolute;left:7px;top:9px;width:4px;height:4px;border-radius:50%;background:var(--steel);opacity:.6}
+.condition .c-name{display:block;margin-left:8px;font:500 9px/1.25 var(--cn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.condition .c-en{display:block;margin-left:8px;margin-top:2px;font:500 6px/1.1 var(--mono);letter-spacing:.04em;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.condition.active{border-color:rgba(112,216,229,.29);background:rgba(112,216,229,.055);color:#c5f3f7}
+.condition.active .c-dot{background:var(--cyan);box-shadow:0 0 8px rgba(112,216,229,.7);opacity:1}
+.condition[data-fault="stall"] .c-dot{background:rgba(228,90,82,.75)}
+.condition[data-fault="overheat"] .c-dot{background:rgba(255,171,94,.8)}
+.condition[data-fault="broken"] .c-dot{background:rgba(228,90,82,.6)}
+.condition[data-fault="bearing"] .c-dot{background:rgba(255,171,94,.7)}
+.condition[data-fault="overload"] .c-dot{background:rgba(255,207,120,.8)}
+.condition-foot{display:flex;align-items:center;gap:6px;padding:3px 9px 0;font:500 7px/1.3 var(--mono);color:var(--muted-2);letter-spacing:.02em;flex-wrap:wrap}
+.tiny-toggle{display:flex;align-items:center;gap:5px;color:var(--muted-2);font-size:8px;cursor:pointer;padding:3px 0}
+.tiny-toggle input{appearance:none;width:20px;height:10px;border-radius:8px;border:1px solid #2b3945;background:#121a23;position:relative;cursor:pointer;transition:.15s;flex:0 0 auto}
+.tiny-toggle input::after{content:"";position:absolute;width:6px;height:6px;left:2px;top:1px;border-radius:50%;background:#63717e;transition:.15s}
+.tiny-toggle input:checked{border-color:rgba(255,171,94,.45);background:rgba(255,171,94,.10)}
+.tiny-toggle input:checked::after{left:11px;background:var(--amber);box-shadow:0 0 7px rgba(255,171,94,.6)}
+.tiny-toggle.hot{color:var(--amber)}
+.tiny-toggle .heat-badge{font:500 7px/1 var(--mono);padding:2px 4px;border:1px solid rgba(255,171,94,.2);color:var(--amber)}
+.tiny-toggle .heat-badge.active{background:rgba(255,171,94,.1);box-shadow:0 0 10px rgba(255,171,94,.08)}
+.display-toggles{display:flex;gap:4px;flex-wrap:wrap;padding:7px 9px 0;border-top:1px solid var(--line-soft);margin-top:6px}
+.display-toggle{height:22px;padding:0 7px;border:1px solid var(--line-soft);border-radius:2px;color:var(--muted-2);font:500 8px/1 var(--cn);display:flex;align-items:center;gap:5px;transition:.15s}
+.display-toggle::before{content:"";width:4px;height:4px;border-radius:1px;background:currentColor;opacity:.5}
+.display-toggle:hover{color:var(--steel);border-color:var(--line)}
+.display-toggle.active{color:var(--cyan);border-color:rgba(112,216,229,.21);background:rgba(112,216,229,.05)}
+.display-toggle.active::before{opacity:1;box-shadow:0 0 7px rgba(112,216,229,.7)}
+.sensor-panel{padding-bottom:4px}
+.sensor-list{padding:3px 0}
+.sensor-row{
+  width:100%;display:grid;grid-template-columns:17px 1fr 60px 6px;align-items:center;gap:6px;
+  padding:4px 10px;border-top:1px solid rgba(172,199,219,.055);text-align:left;transition:.14s;
+}
+.sensor-row:first-child{border-top:0}
+.sensor-row:hover{background:rgba(255,255,255,.025)}
+.sensor-row.selected{background:rgba(112,216,229,.045)}
+.sensor-row .s-id{font:500 7px/1 var(--mono);color:var(--muted-2)}
+.sensor-row .s-name{font-size:9px;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sensor-row .s-val{font:500 9px/1 var(--mono);color:var(--steel);text-align:right;white-space:nowrap}
+.sensor-row .s-val i{font-style:normal;font-size:7px;color:var(--muted-2);margin-left:2px}
+.sensor-row .s-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
+.sensor-row .s-dot.warn{background:var(--amber)}.sensor-row .s-dot.alarm{background:var(--red);box-shadow:0 0 7px rgba(228,90,82,.7)}
+.diag-panel{padding-bottom:8px}
+.flow-strip{display:flex;gap:2px;padding:8px 9px 6px;min-width:0}
+.flow-step{flex:1;min-width:0;padding:4px 2px;border-top:1px solid #2a3641;position:relative;color:var(--muted-2);font:500 6px/1.3 var(--mono);letter-spacing:.02em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:.15s}
+.flow-step::before{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:transparent;transition:.2s}
+.flow-step.done{color:var(--muted);border-top-color:rgba(112,216,229,.26)}
+.flow-step.active{color:var(--cyan);border-top-color:var(--cyan)}
+.flow-step.active::before{background:var(--cyan);box-shadow:0 0 9px rgba(112,216,229,.55)}
+.diag-main{display:grid;grid-template-columns:1fr 94px;gap:8px;padding:0 9px}
+.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;cursor:pointer}
+.feature-cell{padding:4px 5px;border:1px solid var(--line-soft);background:rgba(255,255,255,.012)}
+.feature-cell span{display:block;font:500 6px/1.15 var(--mono);letter-spacing:.02em;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feature-cell b{display:block;margin-top:3px;font:500 10px/1 var(--mono);color:var(--steel);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.feature-cell.hot b{color:var(--amber)}
+.svm-mini{border:1px solid var(--line-soft);padding:6px 6px 5px;position:relative;cursor:pointer;text-align:left}
+.svm-mini .svm-k{font:500 6px/1 var(--mono);letter-spacing:.08em;color:var(--muted-2)}
+.svm-mini .svm-v{margin-top:4px;font:600 11px/1.15 var(--cn);color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svm-mini .svm-v.fault{color:var(--red)}
+.svm-mini .svm-v.warn{color:var(--amber)}
+.svm-mini .svm-cf{display:flex;align-items:center;gap:4px;margin-top:5px;font:500 7px/1 var(--mono);color:var(--muted-2)}
+.svm-mini .svm-bar{height:2px;flex:1;background:#26313c;position:relative;overflow:hidden}
+.svm-mini .svm-bar b{position:absolute;inset:0;width:0;background:var(--cyan);transition:width .3s,background .3s}
+.svm-mini.fault .svm-bar b{background:var(--red)}
+.svm-mini.warn .svm-bar b{background:var(--amber)}
+.svm-mini .svm-f{margin-top:4px;font:500 6px/1 var(--mono);color:var(--muted-2)}
+.alarm-panel{padding-bottom:4px;margin-bottom:4px}
+.alarm-preview{padding:2px 0 5px}
+.alarm-empty{padding:7px 10px 8px;font:500 7px/1.4 var(--mono);color:var(--muted-2);letter-spacing:.02em}
+.alarm-item{width:100%;display:grid;grid-template-columns:43px 1fr 50px;gap:6px;align-items:center;padding:5px 10px;border-top:1px solid rgba(172,199,219,.055);text-align:left;font:500 7px/1.2 var(--mono);color:var(--muted-2)}
+.alarm-item:hover{background:rgba(255,255,255,.02)}
+.alarm-item .ai-type{color:var(--red);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alarm-item .ai-val{color:var(--muted);text-align:right;white-space:nowrap}
+.alarm-item .ai-time{color:var(--muted-2);white-space:nowrap}
+.footer-meta{display:none;justify-content:space-between;padding:9px 2px 4px;color:var(--muted-2);font:500 7px/1.2 var(--mono);letter-spacing:.06em;flex:0 0 auto}
+
+/* ============ guide ============ */
+.guide{
+  position:absolute;left:50%;top:12px;right:auto;bottom:auto;z-index:15;width:480px;padding:5px 10px;
+  border:1px solid rgba(112,216,229,.16);background:rgba(7,12,18,.76);backdrop-filter:blur(15px);
+  opacity:0;visibility:hidden;transform:translate(-50%,-6px);transition:.25s;
+}
+.guide.show{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.guide-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:10px}
+.guide-kicker{display:none;font:500 7px/1 var(--mono);letter-spacing:.14em;color:var(--cyan)}
+.guide-close{color:var(--muted-2);font:500 13px/1 var(--mono);padding:0 3px;margin-top:-2px}
+.guide-title{margin:0 120px 1px 0;font:500 10px/1.35 var(--cn);color:var(--ink)}
+.guide-desc{font-size:8px;line-height:1.5;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:100px}
+.guide-foot{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.guide-next{margin-left:auto}
+.guide-dots{display:flex;gap:3px}
+.guide-dots i{display:block;width:10px;height:2px;background:#26323d}
+.guide-dots i.on{background:var(--cyan)}
+.guide-next{height:20px;padding:0 7px;border:1px solid rgba(112,216,229,.22);color:var(--cyan);font:500 8px/1 var(--cn);border-radius:2px}
+.guide-next:hover{background:rgba(112,216,229,.07)}
+
+/* ============ toasts ============ */
+.toast-stack{position:absolute;right:20px;bottom:24px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:5px;pointer-events:none}
+.toast{
+  max-width:300px;padding:7px 10px;border:1px solid var(--line);border-left:2px solid var(--cyan);
+  background:rgba(7,12,18,.94);color:var(--steel);font-size:9px;line-height:1.5;box-shadow:0 10px 34px rgba(0,0,0,.35);
+  opacity:0;transform:translateY(5px);animation:toastIn .2s forwards;
+}
+.toast.warn{border-left-color:var(--amber)}.toast.alarm{border-left-color:var(--red)}
+@keyframes toastIn{to{opacity:1;transform:none}}
+
+/* ============ modal / atlas / help ============ */
+.layer{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(2,5,8,.67);backdrop-filter:blur(13px);opacity:0;visibility:hidden;transition:opacity .22s}
+#modalLayer{z-index:110}
+#atlasLayer{z-index:100}
+.help-layer{z-index:120}
+.layer.open{opacity:1;visibility:visible}
+.modal-canvas-wrap:fullscreen{width:100vw;height:100vh!important;margin:0;border:0;background:#060a0f;padding:0}
+.modal-canvas-wrap:fullscreen #modalCanvas{width:100%;height:100%}
+#atlasLayer:fullscreen{padding:0;background:#04070a}
+#atlasLayer:fullscreen .atlas{width:100%;height:100%;border:0}
+.modal{
+  width:min(1120px,94vw);height:min(88vh,780px);max-height:92vh;display:flex;flex-direction:column;
+  border:1px solid rgba(172,199,219,.2);background:linear-gradient(160deg,rgba(14,22,30,.99),rgba(7,11,16,.99));
+  box-shadow:0 30px 120px rgba(0,0,0,.65);transform:scale(.985);transition:transform .22s;
+}
+.layer.open .modal{transform:none}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding:15px 18px 12px;border-bottom:1px solid var(--line-soft)}
+.modal-kicker{font:500 7px/1 var(--mono);letter-spacing:.15em;color:var(--cyan);margin-bottom:5px}
+.modal-title{margin:0;font:500 17px/1.25 var(--sans);letter-spacing:.02em;color:#f0f5f8}
+.modal-sub{margin-top:4px;font:500 8px/1.4 var(--mono);letter-spacing:.04em;color:var(--muted-2)}
+.modal-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.modal-tool{height:27px;padding:0 7px;border:1px solid var(--line-soft);color:var(--muted);font:500 8px/1 var(--mono);letter-spacing:.02em;border-radius:2px;white-space:nowrap}
+.modal-tool:hover{color:var(--ink);border-color:var(--line);background:rgba(255,255,255,.025)}
+.modal-close{width:27px;height:27px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;border-radius:2px;margin-left:2px}
+.modal-close:hover{color:var(--ink);border-color:var(--line)}
+.modal-close svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5}
+.modal-options{display:none;align-items:center;gap:8px;padding:6px 18px;border-bottom:1px solid var(--line-soft);font:500 8px/1 var(--mono);color:var(--muted)}
+.modal-options.show{display:flex}
+.modal-options select{height:25px;border:1px solid var(--line);background:#0b1118;color:var(--steel);font:500 8px/1 var(--mono);padding:0 5px}
+.modal-canvas-wrap{position:relative;min-height:0;flex:1;overflow:hidden;background:#080d12;margin:14px 18px 16px;border:1px solid var(--line-soft)}
+#modalCanvas{display:block;position:absolute;inset:0;width:100%;height:100%;min-height:0}
+.modal-foot{display:flex;justify-content:space-between;gap:10px;padding:0 18px 12px;color:var(--muted-2);font:500 7px/1.3 var(--mono);letter-spacing:.03em}
+.modal-foot span{max-width:70%}
+.atlas-layer{align-items:stretch;justify-content:stretch;padding:24px 30px}
+.atlas{
+  width:100%;height:100%;display:flex;flex-direction:column;min-height:0;
+  border:1px solid rgba(172,199,219,.18);background:rgba(6,10,15,.97);box-shadow:0 30px 120px rgba(0,0,0,.6);
+  transform:scale(.99);transition:transform .22s;overflow:hidden;
+}
+.layer.open .atlas{transform:none}
+.atlas-head{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 20px;border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+.atlas-head .ah-l{display:flex;align-items:flex-end;gap:18px;min-width:0}
+.atlas-title{font:300 25px/1 var(--sans);letter-spacing:-.02em;color:#f0f5f8;white-space:nowrap}
+.atlas-sub{font:500 8px/1.4 var(--mono);letter-spacing:.06em;color:var(--muted-2);padding-bottom:1px;max-width:380px}
+.atlas-actions{display:flex;gap:5px;align-items:center}
+.atlas-grid{
+  flex:1;min-height:0;overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-auto-rows:180px;gap:8px;
+}
+.atlas-card{
+  border:1px solid var(--line-soft);background:rgba(10,16,23,.6);display:flex;flex-direction:column;position:relative;min-width:0;overflow:hidden;
+  transition:.16s;text-align:left;
+}
+.atlas-card:hover{border-color:rgba(112,216,229,.3);background:rgba(12,20,28,.8);transform:translateY(-1px)}
+.atlas-card.wide{grid-column:span 2}
+.atlas-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px 4px;flex:0 0 auto}
+.atlas-card-head b{font:500 9px/1.2 var(--cn);color:var(--steel)}
+.atlas-card-head span{font:500 7px/1 var(--mono);color:var(--muted-2)}
+.atlas-card canvas{position:absolute;left:6px;top:29px;width:calc(100% - 12px);height:calc(100% - 36px);min-height:0}
+.atlas-badge{position:absolute;right:7px;bottom:5px;font:500 6px/1 var(--mono);color:var(--muted-2);letter-spacing:.06em}
+.help-layer .modal{width:min(760px,92vw);height:auto;max-height:88vh}
+.help-body{padding:14px 18px 18px;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.help-col h4{margin:0 0 8px;font:500 9px/1 var(--mono);letter-spacing:.12em;color:var(--cyan)}
+.help-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.help-list li{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid var(--line-soft);font-size:9px;color:var(--muted)}
+.help-list li b{font:500 8px/1.2 var(--mono);color:var(--steel);white-space:nowrap}
+kbd{display:inline-block;min-width:17px;padding:2px 4px;border:1px solid #2e3d4a;border-bottom-color:#405260;border-radius:2px;background:#101821;font:500 8px/1 var(--mono);color:var(--steel);text-align:center}
+.help-note{grid-column:1/-1;padding-top:4px;border-top:1px solid var(--line-soft);font-size:9px;line-height:1.7;color:var(--muted-2)}
+.help-note b{color:var(--steel);font-weight:500}
+
+/* ============ sound popover ============ */
+.sound-pop{
+  position:fixed;z-index:80;width:196px;padding:9px 10px;border:1px solid var(--line);
+  background:rgba(8,13,19,.97);box-shadow:0 16px 50px rgba(0,0,0,.5);opacity:0;visibility:hidden;transform:translateY(-4px);transition:.16s;
+}
+.sound-pop.open{opacity:1;visibility:visible;transform:none}
+.sound-pop .sp-row{display:flex;align-items:center;gap:8px}
+.sound-pop label{font:500 8px/1 var(--mono);letter-spacing:.05em;color:var(--muted)}
+.sound-pop .range{flex:1}
+.sound-pop .sp-val{font:500 8px/1 var(--mono);color:var(--steel);min-width:26px;text-align:right}
+.sound-pop p{margin:6px 0 0;font:500 7px/1.4 var(--mono);color:var(--muted-2)}
+.sound-pop .sp-mode{display:flex;gap:3px;margin-top:7px}
+.sound-pop .sp-mode button{height:21px;flex:1;border:1px solid var(--line-soft);color:var(--muted-2);font:500 7px/1 var(--cn)}
+.sound-pop .sp-mode button.active{color:var(--cyan);border-color:rgba(112,216,229,.25)}
+
+/* ============ focus / presentation ============ */
+.focus-exit{
+  display:none;position:fixed;right:20px;top:18px;z-index:60;height:30px;padding:0 11px;
+  border:1px solid var(--line);background:rgba(7,12,17,.75);color:var(--muted);font:500 9px/1 var(--mono);letter-spacing:.05em;
+  backdrop-filter:blur(12px);
+}
+.focus-exit:hover{color:var(--ink);border-color:rgba(112,216,229,.3)}
+body.focus-mode .topbar,body.focus-mode .deck,body.focus-mode .sidebar,body.focus-mode .footer-meta{display:none}
+body.focus-mode .workspace{grid-template-columns:1fr;padding:0;gap:0;height:100vh}
+body.focus-mode .center{grid-template-rows:1fr}
+body.focus-mode .stage{border:0;border-radius:0;background:radial-gradient(66% 61% at 50% 48%,#18232e 0%,#0d141c 48%,#070a0f 100%)}
+body.focus-mode .hero-caption,body.focus-mode .stage-controls,body.focus-mode .side-tools,body.focus-mode .motion-hud,
+body.focus-mode .stage-note,body.focus-mode .axis-badge,body.focus-mode .guide,body.focus-mode .chart-row{display:none!important}
+body.focus-mode .focus-exit{display:block}
+body.focus-mode .part-sheet,body.focus-mode .sensor-sheet{bottom:24px}
+body.hide-tooltip .part-tooltip{display:none}
+body.atlas-open{overflow:hidden}
+
+/* ============ debug ============ */
+.debug-panel{
+  position:fixed;left:18px;bottom:18px;z-index:200;width:290px;padding:10px 12px;
+  border:1px solid rgba(112,216,229,.3);background:rgba(4,8,12,.95);color:var(--muted);
+  font:500 8px/1.6 var(--mono);letter-spacing:.01em;display:none;backdrop-filter:blur(10px);
+}
+.debug-panel.show{display:block}
+.debug-panel h5{margin:0 0 6px;font:500 8px/1 var(--mono);letter-spacing:.12em;color:var(--cyan)}
+.debug-panel .d-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+.debug-panel b{color:var(--steel);font-weight:500}
+.debug-panel .d-feat{margin-top:6px;padding-top:5px;border-top:1px solid var(--line-soft);color:var(--muted-2);white-space:pre-wrap}
+
+/* ============ boot / fallback ============ */
+#boot-screen{
+  position:fixed;inset:0;z-index:999;background:
+    radial-gradient(60% 50% at 50% 45%,#141f2a,#080b10 72%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  transition:opacity .5s,visibility .5s;
+}
+#boot-screen.done{opacity:0;visibility:hidden;pointer-events:none}
+.boot-mark{width:54px;height:54px;border:1px solid rgba(112,216,229,.25);border-radius:50%;position:relative;display:grid;place-items:center;color:var(--cyan);font:500 13px/1 var(--mono)}
+.boot-mark::before{content:"";position:absolute;inset:7px;border:1px solid rgba(112,216,229,.13);border-radius:50%;animation:bootRot 5s linear infinite}
+.boot-mark::after{content:"";position:absolute;inset:17px;border:1px solid rgba(112,216,229,.25);border-radius:50%;border-top-color:var(--cyan);animation:bootRot 1.6s linear infinite reverse}
+@keyframes bootRot{to{transform:rotate(360deg)}}
+.boot-title{font:400 13px/1 var(--sans);letter-spacing:.28em;color:var(--steel);text-transform:uppercase}
+.boot-sub{font:500 8px/1 var(--mono);letter-spacing:.12em;color:var(--muted-2)}
+.boot-line{width:160px;height:1px;background:#1b2732;position:relative;overflow:hidden}
+.boot-line i{position:absolute;left:0;top:0;height:100%;width:40%;background:var(--cyan);animation:bootLine 1.2s ease-in-out infinite}
+@keyframes bootLine{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+.fallback{
+  position:absolute;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:30px;
+  background:rgba(8,11,16,.96);text-align:center;
+}
+.fallback.show{display:flex}
+.fallback .f-inner{max-width:450px}
+.fallback h3{font:500 16px/1.4 var(--sans);color:var(--ink);margin:0 0 7px}
+.fallback p{font-size:11px;line-height:1.7;color:var(--muted);margin:0}
+.fallback code{font-family:var(--mono);color:var(--cyan)}
+
+/* ============ responsive ============ */
+@media (max-width:1560px){
+  .workspace{grid-template-columns:minmax(0,1fr) 356px;padding:10px 14px 14px;gap:12px}
+  .brand{min-width:276px}
+  .spec-strip .spec{padding:0 13px;min-width:74px}
+  .spec-strip .spec:nth-child(4){display:none}
+  .hero-caption h2{font-size:33px}
+  .center{grid-template-rows:minmax(0,1fr) 288px}
+  .ui-optional{display:none}
+}
+@media (max-width:1280px){
+  .atlas-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:184px}
+  .workspace{grid-template-columns:minmax(0,1fr) 338px}
+  .spec-strip .spec:nth-child(3){display:none}
+  .brand-txt h1 i{display:none}
+  .brand{min-width:240px}
+  .top-actions .cta-btn{padding:0 8px}
+  .main-gauge .mg-value b{font-size:34px}
+  .cm-hidden{display:none!important}
+  .condition-grid{padding:7px}
+  .condition{min-height:43px;padding-left:7px}
+  .condition .c-en{display:none}
+  .obs-control>span{display:none}
+  .transport .btn{min-width:52px;padding:0 7px}
+}
+@media (max-width:960px){
+  .guide{display:none}
+}
+@media (max-width:1060px){
+  .atlas-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:190px}
+  html,body{overflow:auto;height:auto;min-height:100%}
+  #app{height:auto;min-height:100vh;display:block}
+  .topbar{position:sticky;top:0;height:60px;flex-basis:60px;padding:0 14px;gap:12px;background:rgba(8,12,17,.95);backdrop-filter:blur(16px)}
+  .spec-strip{display:none}
+  .brand{min-width:0;flex:1}
+  .brand-txt h1{font-size:12px}
+  .top-actions .cta-btn{padding:0 7px;font-size:8px}
+  .live-pill{margin-right:2px}
+  .workspace{display:flex;flex-direction:column;gap:10px;padding:10px 10px 20px}
+  .center{display:flex;flex-direction:column;gap:10px}
+  .stage{height:56vh;min-height:400px;flex:0 0 auto;order:0}
+  .deck{display:flex;flex-direction:column;gap:7px;order:1}
+  .transport{flex-wrap:wrap;height:auto;padding:6px;gap:6px}
+  .transport .load-control{max-width:none;flex:1 1 190px}
+  .obs-control{margin-left:0;flex-wrap:wrap}
+  .timeline-row{height:30px;flex:0 0 auto}
+  .sensor-band{grid-template-columns:repeat(5,1fr);height:auto}
+  .chart-row{grid-template-columns:repeat(3,minmax(240px,1fr));overflow-x:auto;padding-bottom:2px;min-height:132px;flex:0 0 132px}
+  .sidebar{overflow:visible;display:grid;grid-template-columns:1fr 1fr;align-items:start;gap:10px;order:2;flex:none}
+  .sidebar .panel{height:auto}
+  .sidebar .status-panel,.sidebar .conditions-panel,.sidebar .diag-panel,.sidebar .sensor-panel{grid-column:span 1}
+  .sidebar .alarm-panel{grid-column:span 2}
+  .footer-meta{display:none}
+  .chart-card{height:132px;min-height:132px}
+  .hero-caption{left:18px;top:16px}
+  .hero-caption h2{font-size:30px}
+  .stage-controls{top:14px;right:14px}
+  .motion-hud{left:16px;bottom:16px;width:230px}
+  .axis-badge{right:16px;bottom:16px}
+  .side-tools{left:16px;top:160px}
+  .sensor-sheet{right:14px;top:92px;max-height:calc(100% - 110px)}
+  .part-sheet{right:14px;bottom:16px}
+  .alarm-banner{top:10px;min-width:0;max-width:calc(100% - 48px);width:auto}
+  .toast-stack{bottom:16px;right:16px}
+  .guide{top:12px;width:360px}
+}
+@media (max-width:760px){
+  .topbar{height:54px;flex-basis:54px;gap:8px;padding:0 10px}
+  .brand-mark{width:27px;height:27px}
+  .brand-txt .kicker{font-size:6px}
+  .brand-txt h1{font-size:11px;letter-spacing:0}
+  .live-pill{height:26px;padding:0 8px;font-size:8px}
+  .live-pill b{display:none}
+  .top-actions{gap:2px}
+  .top-actions .icon-btn{padding:0 6px}
+  .top-actions .cta-btn{height:26px;font-size:7px;padding:0 6px}
+  .quality{height:26px;min-width:62px;font-size:7px}
+  .top-actions .hide-sm{display:none!important}
+  .workspace{padding:8px 8px 16px}
+  .stage{height:52vh;min-height:350px;max-height:580px}
+  .hero-caption{left:14px;top:13px;max-width:210px}
+  .hero-caption .eyebrow{font-size:6px;letter-spacing:.10em}
+  .eyebrow::before{width:10px}
+  .hero-caption h2{font-size:24px;margin-top:7px}
+  .hero-caption h2 span{font-size:10px}
+  .hero-caption p{font-size:9px;letter-spacing:.13em;margin-top:5px}
+  .hero-caption .patent{display:none}
+  .stage-controls{top:10px;right:10px;gap:4px}
+  .view-tabs{padding:2px}
+  .view-tab{height:23px;font-size:9px;padding:0 6px}
+  .view-tab .idx{display:none}
+  .camera-select{display:block}
+  .camera-rail{display:flex;justify-content:flex-end;gap:2px;max-width:150px}
+  .camera-rail .cam-chip{display:none}
+  .camera-rail .icon-square{width:21px;height:21px}
+  .side-tools{display:none}
+  .motion-hud{left:10px;bottom:10px;width:193px;padding:8px 9px}
+  .field-legend{display:none!important}
+  .hud-row b{font-size:10px}
+  .hud-row span{font-size:8px}
+  .stage-note{display:none}
+  .axis-badge{right:10px;bottom:10px;font-size:6px;gap:5px}
+  .axis-glyph{width:24px;height:24px}
+  .stage-corner{display:none}
+  .alarm-banner{left:10px;right:10px;transform:translateY(-8px);max-width:none;width:auto;padding:7px 7px 7px 9px;min-width:0;gap:7px}
+  .alarm-banner.show{transform:none}
+  .alarm-banner .alarm-icon{width:20px;height:20px;font-size:10px}
+  .alarm-banner .alarm-copy b{font-size:9px}
+  .alarm-banner .alarm-copy span{font-size:7px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .alarm-banner .alarm-action{height:23px;font-size:8px}
+  .transport .btn{height:29px;min-width:50px;font-size:9px}
+  .transport .ctrl-ico{font-size:10px}
+  .load-control{min-width:150px}
+  .obs-control{width:100%;justify-content:space-between;gap:5px}
+  .obs-control .seg button{padding:0 6px;font-size:7px}
+  .manual-wrap{min-width:70px}.manual-wrap .range{width:50px;flex-basis:50px}
+  .timeline-row{height:auto;min-height:42px;flex-wrap:wrap;padding:5px 6px;gap:4px}
+  .timeline-row .tl-title{width:100%;font-size:7px}
+  .phase-track{flex-basis:100%;order:4;margin-top:2px}
+  .phase-values{font-size:7px;gap:7px;order:2;flex-wrap:wrap}
+  .step-btns{order:3}
+  .sensor-band{grid-template-columns:repeat(2,1fr)}
+  .sensor-cell{padding:6px 7px}
+  .sensor-cell:last-child{grid-column:1/-1}
+  .sc-main{margin-top:4px}
+  .sc-val{font-size:16px}
+  .sc-wave{width:38px}
+  .chart-row{grid-template-columns:repeat(3,260px);flex-basis:118px;min-height:118px}
+  .chart-card{height:118px;min-height:118px}
+  .sidebar{grid-template-columns:1fr}
+  .sidebar .alarm-panel,.sidebar .status-panel,.sidebar .conditions-panel,.sidebar .diag-panel,.sidebar .sensor-panel{grid-column:span 1}
+  .sensor-sheet{left:10px;right:10px;width:auto;top:88px;max-height:calc(100% - 100px)}
+  .part-sheet{left:10px;right:10px;width:auto;bottom:10px}
+  .terminal-card{left:10px;right:10px;width:auto;transform:translateY(6px);bottom:10px}
+  .terminal-card.open{transform:none}
+  .guide{display:none}
+  .stage-controls{max-width:222px}
+  .motion-hud{max-width:205px}
+  .chart-card .chart-tag{display:none}
+  .atlas-layer{padding:8px}
+  .atlas-head{padding:10px;flex-wrap:wrap;gap:8px}
+  .atlas-title{font-size:19px}
+  .atlas-sub{display:none}
+  .atlas-grid{grid-template-columns:1fr;grid-auto-rows:180px;padding:8px;gap:6px}
+  .atlas-card.wide{grid-column:auto}
+  .modal{padding:0;width:100%;height:88vh}
+  .modal-head{padding:11px 12px 9px;flex-wrap:wrap}
+  .modal-title{font-size:14px}
+  .modal-actions{order:3;width:100%;justify-content:flex-start;gap:3px;margin-top:7px}
+  .modal-tool{font-size:7px;height:24px}
+  .modal-canvas-wrap{margin:8px;min-height:230px}
+  .modal-foot{display:none}
+  .help-body{grid-template-columns:1fr;padding:10px 12px}
+  .layer{padding:8px}
+  .debug-panel{width:calc(100vw - 24px);left:12px;bottom:12px}
+  body.focus-mode .motion-hud{display:flex!important}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<div id="boot-screen">
+  <div class="boot-mark">M</div>
+  <div class="boot-title">The Heart of Drive</div>
+  <div class="boot-sub">Y90S-4 · INDUCTION MOTOR DIAGNOSTIC LAB</div>
+  <div class="boot-line"><i></i></div>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><span>M</span></div>
+      <div class="brand-txt">
+        <span class="kicker">MOTOR BRIEF / NO. 01 · 3D DIAGNOSTIC LAB</span>
+        <h1>三相异步电动机 <i>THE HEART OF DRIVE</i></h1>
+      </div>
+    </div>
+    <div class="spec-strip" aria-label="电机概要">
+      <div class="spec"><span>FRAME / MODEL</span><b>Y90S-4</b></div>
+      <div class="spec"><span>RATED OUTPUT</span><b>1.1 kW</b></div>
+      <div class="spec"><span>POLES / FREQ.</span><b>4P / 50 Hz</b></div>
+      <div class="spec"><span>VOLTAGE / CONN.</span><b>380 V · △</b></div>
+      <div class="spec"><span>SAMPLE / WINDOW</span><b>50 Hz / 100 pt</b></div>
+    </div>
+    <div class="top-actions">
+      <div class="live-pill" id="topState"><i class="dot"></i><b id="topStateText">额定运行</b></div>
+      <select class="quality" id="qualitySelect" title="渲染画质" aria-label="渲染画质">
+        <option value="auto">AUTO · 自动</option>
+        <option value="high">HIGH · 高画质</option>
+        <option value="smooth">FLOW · 流畅</option>
+      </select>
+      <button class="icon-btn" id="soundBtn" title="声音（默认静音）" aria-label="声音" aria-pressed="false">
+        <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 8.5c1.3 1.2 1.3 5.8 0 7"/><path d="M19.5 6c3 2.5 3 9.5 0 12" opacity=".4"/></svg>
+      </button>
+      <button class="cta-btn" id="atlasBtn" title="数据图谱 · 全屏诊断大屏">数据图谱</button>
+      <button class="cta-btn hide-sm" id="cinemaBtn" title="电影演示 · 22 秒">电影演示</button>
+      <button class="icon-btn hide-sm" id="presentBtn" title="答辩模式 · 仅保留 3D" aria-label="答辩模式">
+        <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <div class="top-sep"></div>
+      <button class="icon-btn" id="helpBtn" title="操作说明与快捷键" aria-label="帮助">?</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="center">
+      <div class="stage" id="stage">
+        <canvas id="gl" aria-label="三相异步电动机三维交互模型"></canvas>
+        <div class="stage-ui">
+          <span class="stage-corner corner-tl"></span><span class="stage-corner corner-tr"></span>
+          <span class="stage-corner corner-bl"></span><span class="stage-corner corner-br"></span>
+
+          <div class="hero-caption">
+            <div class="eyebrow">Y SERIES · TOTALLY ENCLOSED FAN-COOLED</div>
+            <h2>Y90S-4 <span>/ 1.1 kW</span></h2>
+            <p>电磁成力，转差生矩。</p>
+            <div class="patent">LOAD <b id="heroLoad">100</b>% &nbsp;·&nbsp; COS φ 0.78 &nbsp;·&nbsp; η 0.79 &nbsp;·&nbsp; IP44</div>
+          </div>
+
+          <div class="stage-controls">
+            <div class="view-tabs" role="group" aria-label="结构视图">
+              <button class="view-tab active" data-structure="assembly"><span class="idx">01</span>外观</button>
+              <button class="view-tab" data-structure="section"><span class="idx">02</span>机械切面</button>
+              <button class="view-tab" data-structure="exploded"><span class="idx">03</span>分层爆炸</button>
+            </div>
+            <select class="camera-select" id="cameraSelect" aria-label="镜头预设">
+              <option value="hero">整机视角</option>
+              <option value="section">剖面视角</option>
+              <option value="field">磁场与转差</option>
+              <option value="rotor">转子特写</option>
+              <option value="sensors">传感器布局</option>
+            </select>
+            <div class="camera-rail" role="group" aria-label="镜头预设">
+              <button class="cam-chip active" data-camera="hero">整机</button>
+              <button class="cam-chip" data-camera="section">剖面</button>
+              <button class="cam-chip" data-camera="field">磁场转差</button>
+              <button class="cam-chip" data-camera="rotor">转子</button>
+              <button class="cam-chip" data-camera="sensors">传感器</button>
+              <button class="icon-square" id="resetViewBtn" title="复位视角（R）" aria-label="复位视角">
+                <svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 2 7"/><path d="M4 5v5h5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="side-tools">
+            <button class="icon-square" id="fieldQuickBtn" title="旋转磁场显示（F）" aria-label="旋转磁场显示" aria-pressed="false">
+              <svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 12-5M19 12a7 7 0 0 1-12 5"/><path d="m17 3 1 4-4 1M7 21l-1-4 4-1"/></svg>
+            </button>
+            <button class="icon-square" id="annotQuickBtn" title="工程标注" aria-label="工程标注" aria-pressed="true">
+              <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="2"/><path d="M18 14V9h3"/></svg>
+            </button>
+            <button class="icon-square" id="atlasQuickBtn" title="数据图谱" aria-label="数据图谱">
+              <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
+            </button>
+          </div>
+
+          <div class="field-legend" id="fieldLegend">
+            <span class="fl-chip n">N</span><span class="fl-chip s">S</span>
+            <em>4-POLE ROTATING FIELD</em>
+            <span id="fieldLegendText">n₁ 1500 · n 1400 · s 0.067</span>
+          </div>
+
+          <div class="motion-hud">
+            <div class="hud-head"><span class="hud-label">MECHANISM / 机构观察</span><span class="hud-state" id="hudMode">AUTO · 慢放</span></div>
+            <div class="hud-row"><span>工况转速</span><b id="hudActual">1400<i>r/min</i></b></div>
+            <div class="hud-row"><span>机构展示</span><b id="hudDisplay">30.0<i>r/min</i></b></div>
+            <div class="hud-row accent"><span>磁场展示</span><b id="hudField">32.1<i>r/min</i></b></div>
+            <div class="hud-row"><span>观察倍率</span><b id="hudScale">0.021×</b></div>
+            <div class="slip-readout"><span>SLIP / 转差率</span><span>Δθ<sub>elec</sub> <b id="hudSlipAngle">0.0°</b></span><b id="hudSlip">0.067</b></div>
+          </div>
+
+          <div class="stage-note">DRAG TO ORBIT · SCROLL TO ZOOM · CLICK PARTS TO INSPECT</div>
+          <div class="axis-badge"><div class="axis-glyph"><i></i></div><span>SHAFT AXIS<br>+Z / OUTPUT</span></div>
+
+          <div class="alarm-banner" id="alarmBanner" role="alert">
+            <div class="alarm-icon">!</div>
+            <div class="alarm-copy"><b id="alarmText">检测到卡滞堵转故障</b><span id="alarmSub">电流 / 转速越限 · 保护延时中</span></div>
+            <button class="alarm-action" id="alarmResetBtn">复位</button>
+          </div>
+
+          <div class="annotation-layer" id="annotationLayer">
+            <svg aria-hidden="true"><g id="annotationLines"></g></svg>
+          </div>
+
+          <div class="part-tooltip" id="partTooltip"></div>
+
+          <div class="sensor-sheet" id="sensorSheet" aria-live="polite">
+            <div class="sheet-head">
+              <div>
+                <div class="sheet-kicker" id="sensorKicker">SENSOR 01 / MEASUREMENT CHAIN</div>
+                <div class="sheet-title" id="sensorSheetTitle">霍尔电流传感器</div>
+                <div class="sheet-en" id="sensorSheetEn">HALL CURRENT SENSOR</div>
+              </div>
+              <button class="close-x" id="sensorSheetClose" aria-label="关闭传感器详情"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+            </div>
+            <div class="sheet-body">
+              <div class="sensor-value-line">
+                <div class="big" id="sensorSheetValue">2.20<i>A</i></div>
+                <div class="sensor-state normal" id="sensorSheetState">NORMAL</div>
+              </div>
+              <dl class="sheet-info">
+                <dt>安装位置</dt><dd id="sensorSheetPos">—</dd>
+                <dt>测量原理</dt><dd id="sensorSheetPrinciple">—</dd>
+                <dt>量程 / 精度</dt><dd class="mono" id="sensorSheetRange">—</dd>
+                <dt>被测部件</dt><dd id="sensorSheetPart">—</dd>
+              </dl>
+              <div class="part-link"><span>测量部位 → 异常指向</span><div id="sensorSheetHints" style="margin-left:auto"></div></div>
+              <div class="chain">
+                <span class="chain-node active" id="chainPart">定子绕组</span><span class="chain-arr">→</span>
+                <span class="chain-node active" id="chainSensor">传感器</span><span class="chain-arr">→</span>
+                <span class="chain-node" id="chainDaq">DAQ-01</span><span class="chain-arr">→</span>
+                <span class="chain-node" id="chainFeature">特征提取</span><span class="chain-arr">→</span>
+                <span class="chain-node" id="chainSvm">SVM</span>
+              </div>
+              <div class="abnormal-parts" id="sensorAbnormal"></div>
+              <div class="sheet-actions">
+                <button class="sheet-btn primary" id="sensorZoomBtn">⤢ 查看详情数据</button>
+                <button class="sheet-btn" id="sensorFocusBtn">◉ 聚焦测量部位</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="part-sheet" id="partSheet">
+            <div class="ps-row">
+              <div><div class="ps-title" id="partSheetTitle">铸铁机座</div><div class="ps-en" id="partSheetEn">CAST-IRON FRAME</div></div>
+              <button class="close-x" id="partSheetClose" aria-label="关闭部件详情"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+            </div>
+            <div class="ps-desc" id="partSheetDesc"></div>
+            <div class="ps-meta" id="partSheetMeta"></div>
+            <div class="ps-actions">
+              <button class="sheet-btn primary" id="partSheetFocusBtn">聚焦该部件</button>
+              <button class="sheet-btn" id="partSheetDataBtn">相关数据</button>
+            </div>
+          </div>
+
+          <div class="terminal-card" id="terminalCard">
+            <div class="tc-head">
+              <div><h4>接线盒 · TERMINAL BOX</h4><p>6 个接线柱 / 可拆盒盖 · 连片切换演示</p></div>
+              <button class="close-x" id="terminalClose" aria-label="关闭接线盒"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+            </div>
+            <div class="terminal-grid">
+              <div class="connection-switch" role="group" aria-label="绕组接法">
+                <button class="active" data-conn="delta">△ DELTA</button>
+                <button data-conn="wye">Y WYE</button>
+              </div>
+              <div class="terminal-note" id="terminalNote">当前为 <b>△ 380 V</b> 额定运行接法。</div>
+            </div>
+            <div class="terminal-note" style="margin-top:8px">Y 接把绕组承受电压降至 1/√3，起动电流与转矩约为 △ 的 1/3；仅作降压启动教学示意，运行模型按 △ 额定口径计算。</div>
+          </div>
+
+          <div class="guide" id="guide">
+            <div class="guide-head"><span class="guide-kicker">FIRST LOOK / 操作引导</span><button class="guide-close" id="guideClose" aria-label="跳过引导">×</button></div>
+            <div class="guide-title" id="guideTitle">先转一圈，观察这台电机。</div>
+            <div class="guide-desc" id="guideDesc">在 3D 视图中拖拽旋转视角，滚轮靠近或推远；右侧参数会保持同步。</div>
+            <div class="guide-foot">
+              <div class="guide-dots" id="guideDots"></div>
+              <button class="guide-next" id="guideNext">下一步 →</button>
+            </div>
+          </div>
+
+          <div class="cinema-hud" id="cinemaHud">
+            <div class="cinema-exit-hint">CLICK ANYWHERE TO EXIT · 点击任意位置退出</div>
+            <div class="cinema-title"><div class="t" id="cinemaTitle">THE HEART OF DRIVE</div><div class="s" id="cinemaSub">电磁成力 · 转差生矩</div></div>
+            <div class="cinema-progress"><b id="cinemaProgress"></b></div>
+          </div>
+
+          <div class="toast-stack" id="toastStack"></div>
+          <button class="focus-exit" id="focusExit">退出答辩模式 · ESC</button>
+
+          <div class="fallback" id="fallback">
+            <div class="f-inner">
+              <h3>无法启动 3D 渲染</h3>
+              <p id="fallbackText">此浏览器未提供可用的 WebGL2 上下文。请使用最新版 Chrome / Edge / Safari，并确认硬件加速已开启。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="deck">
+        <div class="transport">
+          <button class="btn power" id="powerBtn" aria-pressed="true" title="主电源合闸 / 断电"><span class="ctrl-ico">⏻</span><span>断电</span></button>
+          <button class="btn primary" id="startBtn" title="启动电机"><span class="ctrl-ico">▶</span><span>启动</span></button>
+          <button class="btn stop" id="stopBtn" title="停机 / 惰转"><span class="ctrl-ico">■</span><span>停机</span></button>
+          <button class="btn" id="pauseBtn" title="机构播放 / 暂停（空格）" aria-pressed="false"><span class="ctrl-ico">Ⅱ</span><span>暂停机构</span></button>
+          <span class="vrule"></span>
+          <div class="load-control">
+            <label for="loadRange">机械负载</label>
+            <input class="range" id="loadRange" type="range" min="0" max="120" step="1" value="100" aria-label="机械负载百分比">
+            <span class="val-chip" id="loadValue">100<i>%</i></span>
+          </div>
+          <span class="vrule"></span>
+          <div class="obs-control">
+            <span>观察速度</span>
+            <div class="seg" role="group" aria-label="机构观察速度">
+              <button class="active" data-obs="auto">AUTO</button>
+              <button data-obs="ultra">超慢</button>
+              <button data-obs="manual">手动</button>
+              <button data-obs="real">1×</button>
+            </div>
+            <div class="manual-wrap" id="manualWrap">
+              <input class="range" id="manualScale" type="range" min="1" max="20" step="1" value="4" aria-label="手动观察倍率">
+              <b id="manualScaleValue">0.040×</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-row">
+          <div class="tl-title"><span>PHASE / 电角度相位轴</span><em>θe = p·θm</em></div>
+          <div class="step-btns" role="group" aria-label="机构角度步进">
+            <button data-step="-15" title="后退 15°">−15°</button>
+            <button data-step="-5" title="后退 5°">−5°</button>
+            <button data-step="-1" title="后退 1°">−1°</button>
+            <button data-step="1" title="前进 1°">+1°</button>
+            <button data-step="5" title="前进 5°">+5°</button>
+            <button data-step="15" title="前进 15°">+15°</button>
+          </div>
+          <div class="phase-track" id="phaseTrack" title="拖动以检视机构相位">
+            <div class="tick major" style="left:0%"></div>
+            <div class="tick" style="left:12.5%"></div><div class="tick" style="left:25%"></div>
+            <div class="tick" style="left:37.5%"></div><div class="tick major" style="left:50%"></div>
+            <div class="tick" style="left:62.5%"></div><div class="tick" style="left:75%"></div>
+            <div class="tick" style="left:87.5%"></div><div class="tick major" style="left:100%"></div>
+            <span class="marker rotor" id="rotorMarker" style="left:0%"></span>
+            <span class="marker field" id="fieldMarker" style="left:0%"></span>
+          </div>
+          <div class="phase-values">
+            <span>θm <b id="mechAngle">0.0°</b></span>
+            <span>θe <b id="elecAngle">0.0°</b></span>
+            <span class="slip">Δθe <b id="slipAngle">0.0°</b></span>
+          </div>
+        </div>
+
+        <div class="sensor-band" id="sensorBand"></div>
+
+        <div class="chart-row">
+          <article class="chart-card" data-card="trend" tabindex="0" role="button" aria-label="三通道实时趋势，点击放大">
+            <div class="chart-head"><div class="chart-title">三通道趋势 <span>60 s</span></div><button class="chart-expand" aria-label="放大趋势图">⤢</button></div>
+            <canvas class="chart-canvas" id="miniTrend"></canvas>
+            <span class="chart-tag">I / n / T · LIVE</span>
+          </article>
+          <article class="chart-card" data-card="torque" tabindex="0" role="button" aria-label="转矩转差特性，点击放大">
+            <div class="chart-head"><div class="chart-title">T–s 机械特性 <span>WORK POINT</span></div><button class="chart-expand" aria-label="放大转矩转差图">⤢</button></div>
+            <canvas class="chart-canvas" id="miniTorque"></canvas>
+            <span class="chart-tag">T = 9550 P / n</span>
+          </article>
+          <article class="chart-card" data-card="svm" tabindex="0" role="button" aria-label="SVM 特征散点图，点击放大">
+            <div class="chart-head"><div class="chart-title">SVM 决策域 <span>RBF · 2D PROJ.</span></div><button class="chart-expand" aria-label="放大 SVM 散点图">⤢</button></div>
+            <canvas class="chart-canvas" id="miniSvm"></canvas>
+            <span class="chart-tag">I mean × dn/dt</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel status-panel" data-card-anchor="gauges">
+        <div class="panel-head">
+          <div class="ph-l"><h3>运行工况</h3><span class="num">01 / OPERATING</span></div>
+          <button class="expand" data-open-card="gauges" title="放大数字仪表" aria-label="放大数字仪表">⤢</button>
+        </div>
+        <div class="status-top">
+          <div class="run-state"><span class="rs-dot" id="statusDot"></span><span class="rs-name" id="statusName">额定运行</span><span class="rs-sub" id="statusSub">RATED · S1</span></div>
+          <span class="state-tag" id="statusTag">STABLE</span>
+        </div>
+        <div class="main-gauges">
+          <button class="main-gauge" data-open-card="gauges" aria-label="打开电流与转速数字仪表">
+            <div class="mg-label">定子线电流 <span>I / A</span></div>
+            <div class="mg-value"><b id="currentValue">2.20</b><i>A</i></div>
+            <div class="mg-ref"><span>RATED 2.2</span><span>TRIP <b>&gt; 3.5</b></span></div>
+            <canvas class="mg-mini" id="miniCurrent"></canvas>
+          </button>
+          <button class="main-gauge" data-open-card="gauges" aria-label="打开电流与转速数字仪表">
+            <div class="mg-label">转子实际转速 <span>n / r/min</span></div>
+            <div class="mg-value"><b id="speedValue">1400</b><i>r/min</i></div>
+            <div class="mg-ref"><span>SYNC 1500</span><span>n₁ · s = <b id="speedSlipRef">0.067</b></span></div>
+            <canvas class="mg-mini" id="miniSpeed"></canvas>
+          </button>
+        </div>
+        <div class="sub-gauges">
+          <button class="sub-gauge" data-open-card="gauges"><span>壳体温度</span><b id="tempValue">55.0<i>℃</i></b></button>
+          <button class="sub-gauge" data-open-card="gauges"><span>输出转矩</span><b id="torqueValue">7.50<i>N·m</i></b></button>
+          <button class="sub-gauge" data-open-card="gauges"><span>转差率</span><b id="slipValue">0.067</b></button>
+          <button class="sub-gauge" data-open-card="gauges"><span>输出功率</span><b id="powerValue">1.10<i>kW</i></b></button>
+        </div>
+      </section>
+
+      <section class="panel conditions-panel">
+        <div class="panel-head">
+          <div class="ph-l"><h3>工况注入</h3><span class="num">02 / SCENARIO</span></div>
+          <button class="expand" data-open-card="faultmap" title="故障特征对照表" aria-label="故障特征对照表">⤢</button>
+        </div>
+        <div class="condition-grid" id="conditionGrid">
+          <button class="condition active" data-fault="normal"><span class="c-dot"></span><span class="c-name">正常运行</span><span class="c-en">HEALTHY</span></button>
+          <button class="condition" data-fault="stall"><span class="c-dot"></span><span class="c-name">卡滞堵转</span><span class="c-en">JAM / LOCKED</span></button>
+          <button class="condition" data-fault="bearing"><span class="c-dot"></span><span class="c-name">轴承磨损</span><span class="c-en">BEARING WEAR</span></button>
+          <button class="condition" data-fault="broken"><span class="c-dot"></span><span class="c-name">转子断条</span><span class="c-en">BROKEN BAR</span></button>
+          <button class="condition" data-fault="overheat"><span class="c-dot"></span><span class="c-name">绕组过热</span><span class="c-en">OVERHEAT</span></button>
+          <button class="condition" data-fault="overload"><span class="c-dot"></span><span class="c-name">过载运行</span><span class="c-en">OVERLOAD</span></button>
+        </div>
+        <div class="condition-foot">
+          <label class="tiny-toggle hot" title="温升过程按 10 倍速度演示"><input type="checkbox" id="thermalAccel" checked><span id="thermalLabel">热过程 ×10</span><span class="heat-badge" id="thermalBadge">ACCEL ×10</span></label>
+          <span>·</span><span id="faultHint">额定负载，稳定运行</span>
+        </div>
+        <div class="display-toggles">
+          <button class="display-toggle" id="fieldToggle" aria-pressed="false">旋转磁场</button>
+          <button class="display-toggle" id="barsToggle" aria-pressed="true">鼠笼导条</button>
+          <button class="display-toggle" id="airToggle" aria-pressed="false">气流组织</button>
+          <button class="display-toggle active" id="annotToggle" aria-pressed="true">工程标注</button>
+          <button class="display-toggle" id="terminalBtn">接线盒</button>
+        </div>
+      </section>
+
+      <section class="panel sensor-panel">
+        <div class="panel-head">
+          <div class="ph-l"><h3>测量系统</h3><span class="num">03 / SENSORS</span></div>
+          <button class="expand" data-open-card="sensorLocations" title="传感器对照表" aria-label="传感器对照表">⤢</button>
+        </div>
+        <div class="sensor-list" id="sensorList"></div>
+      </section>
+
+      <section class="panel diag-panel">
+        <div class="panel-head">
+          <div class="ph-l"><h3>诊断链 / SVM</h3><span class="num">04 / INFERENCE</span></div>
+          <button class="expand" data-open-card="flow" title="放大诊断流程" aria-label="放大诊断流程">⤢</button>
+        </div>
+        <div class="flow-strip" id="flowStrip">
+          <div class="flow-step done" data-flow="0">采集</div>
+          <div class="flow-step done" data-flow="1">预处理</div>
+          <div class="flow-step done" data-flow="2">特征</div>
+          <div class="flow-step active" data-flow="3">SVM</div>
+          <div class="flow-step" data-flow="4">输出</div>
+          <div class="flow-step" data-flow="5">联动</div>
+        </div>
+        <div class="diag-main">
+          <div class="feature-grid" id="featureGrid" data-open-card="features">
+            <div class="feature-cell"><span>I 均值</span><b id="fMean">2.20</b></div>
+            <div class="feature-cell"><span>I 方差</span><b id="fVar">0.000</b></div>
+            <div class="feature-cell"><span>I 峭度</span><b id="fKurt">3.00</b></div>
+            <div class="feature-cell"><span>dn/dt</span><b id="fRate">0.00</b></div>
+            <div class="feature-cell"><span>跟随误差</span><b id="fErr">0.0</b></div>
+            <div class="feature-cell"><span>T 斜率</span><b id="fTemp">0.00</b></div>
+          </div>
+          <button class="svm-mini" id="svmMini" data-open-card="svm" aria-label="打开 SVM 判决">
+            <div class="svm-k">SVM VERDICT</div>
+            <div class="svm-v" id="svmVerdict">正常类</div>
+            <div class="svm-cf"><span>CONF</span><div class="svm-bar"><b id="svmBar"></b></div><span id="svmConf">94%</span></div>
+            <div class="svm-f" id="svmFx">f(x) = −0.82</div>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel alarm-panel">
+        <div class="panel-head">
+          <div class="ph-l"><h3>报警记录</h3><span class="num">05 / EVENT LOG</span></div>
+          <button class="expand" data-open-card="alarms" title="放大报警记录" aria-label="放大报警记录">⤢</button>
+        </div>
+        <div class="alarm-preview" id="alarmPreview"><div class="alarm-empty">暂无报警 · 保护阈值 I&gt;3.5 A · n&lt;100 r/min · T&gt;75 ℃</div></div>
+      </section>
+      <div class="footer-meta"><span>MOTOR DIAGNOSTICS LAB · BUILD 2.0</span><span id="clockMeta">LOCAL —</span></div>
+    </aside>
+  </main>
+</div>
+
+<div class="layer" id="modalLayer" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-kicker">DATA VIEW / ENLARGED</div><h2 class="modal-title" id="modalTitle">三通道实时趋势</h2><div class="modal-sub" id="modalSub">—</div></div>
+      <div class="modal-actions">
+        <button class="modal-tool" id="modalPause">暂停</button>
+        <button class="modal-tool" id="modalExport">导出 PNG</button>
+        <button class="modal-tool" id="modalCopy">复制数据</button>
+        <button class="modal-tool" id="modalFullscreen">全屏</button>
+        <button class="modal-close" id="modalClose" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      </div>
+    </div>
+    <div class="modal-options" id="modalOptions"></div>
+    <div class="modal-canvas-wrap"><canvas id="modalCanvas"></canvas></div>
+    <div class="modal-foot"><span id="modalHint">双击数据卡 / Enter 打开 · ESC 关闭 · 悬停读取精确值</span><span id="modalMeta">SOURCE · 50 Hz / 2 s window</span></div>
+  </div>
+</div>
+
+<div class="layer atlas-layer" id="atlasLayer" role="dialog" aria-modal="true" aria-labelledby="atlasTitle">
+  <div class="atlas">
+    <div class="atlas-head">
+      <div class="ah-l"><div><div class="modal-kicker">MOTOR BRIEF / DATA ATLAS</div><div class="atlas-title" id="atlasTitle">诊断大屏</div></div><div class="atlas-sub">14 个可放大数据视图 · 答辩投屏 · 所有绘制与缩略图共用同一数据源</div></div>
+      <div class="atlas-actions">
+        <button class="modal-tool" id="atlasFullscreen">全屏数据屏</button>
+        <button class="modal-tool" id="atlasRefresh">刷新</button>
+        <button class="modal-close" id="atlasClose" aria-label="关闭数据图谱"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      </div>
+    </div>
+    <div class="atlas-grid" id="atlasGrid"></div>
+  </div>
+</div>
+
+<div class="layer help-layer" id="helpLayer" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-kicker">OPERATING MANUAL / 操作说明</div><h2 class="modal-title" id="helpTitle">观察、测量、诊断</h2><div class="modal-sub">Y90S-4 · 3D interactive fault laboratory</div></div>
+      <div class="modal-actions"><button class="modal-close" id="helpClose" aria-label="关闭帮助"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+    </div>
+    <div class="help-body">
+      <div class="help-col">
+        <h4>KEYBOARD / 快捷键</h4>
+        <ul class="help-list">
+          <li><span>机构播放 / 暂停</span><b><kbd>Space</kbd></b></li>
+          <li><span>复位视角</span><b><kbd>R</kbd></b></li>
+          <li><span>外观 / 机械切面</span><b><kbd>C</kbd></b></li>
+          <li><span>分层爆炸图</span><b><kbd>E</kbd></b></li>
+          <li><span>旋转磁场开关</span><b><kbd>F</kbd></b></li>
+          <li><span>声音开关</span><b><kbd>M</kbd></b></li>
+          <li><span>退出 / 聚焦答辩</span><b><kbd>Esc</kbd> / <kbd>P</kbd></b></li>
+          <li><span>调试面板</span><b><kbd>Shift</kbd> + <kbd>D</kbd></b></li>
+        </ul>
+      </div>
+      <div class="help-col">
+        <h4>MEASUREMENT / 测量系统</h4>
+        <ul class="help-list">
+          <li><span>定子线电流</span><b>HALL · CT-H01</b></li>
+          <li><span>转子转速</span><b>ENCODER · ENC-02</b></li>
+          <li><span>壳体温度</span><b>PT100 · RTD-03</b></li>
+          <li><span>轴承振动</span><b>ACC · VIB-04</b></li>
+          <li><span>旋转 / 停转</span><b>PHOTO · PH-05</b></li>
+        </ul>
+      </div>
+      <div class="help-note">
+        <b>观察建议</b>：先点“机械切面”确认定子、气隙、鼠笼与轴承的装配关系；再开启“旋转磁场”，用 AUTO 慢放观察磁场领先转子；最后注入“卡滞堵转”，看光电脉冲消失、电流升至高位而磁场仍以同步速旋转。所有图表卡支持双击 / Enter 放大，放大后可导出 PNG、复制 Markdown 数据或进入全屏。<br>
+        <b>教学口径</b>：同步转速 n₁ = 60f/p = 1500 r/min；额定转差率 s = (1500−1400)/1500 ≈ 0.067；输出转矩按 9550P/n 计算。SVM 样本、混淆矩阵与轴承故障相关振动为教学生成数据，不用于工业诊断。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sound-pop" id="soundPop">
+  <div class="sp-row"><label>VOLUME</label><input class="range" id="volumeRange" type="range" min="0" max="100" value="42" aria-label="音量"><span class="sp-val" id="volumeValue">42</span></div>
+  <div class="sp-mode" role="group" aria-label="慢放声音策略">
+    <button class="active" data-soundmode="condition">随工况</button>
+    <button data-soundmode="event">逐次提示</button>
+    <button data-soundmode="silent">慢放静音</button>
+  </div>
+  <p>声音默认关闭。100 Hz 电磁嗡鸣 + 风扇气流，实际转速驱动；慢放画面与声音频率不宣称逐次同步。</p>
+</div>
+
+<pre class="debug-panel" id="debugPanel"></pre>
+
+<noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#080b10;color:#e8edf2;z-index:9999;font:14px sans-serif">需要启用 JavaScript 才能运行 3D 电机实验室。</div></noscript>
+
+<script type="importmap">
+__THREE_IMPORTMAP__
+</script>
+<script type="module">
+__APP_JS__
+</script>
+</body>
+</html>
